@@ -1,0 +1,21 @@
+# Private layers — never commit your sources or wiki
+sources/*
+!sources/.gitkeep
+wiki/*
+!wiki/.gitkeep
+
+# SQLite databases
+data/*.db
+data/*.db-*
+
+# Python noise (if you ever add scripts)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editor noise
+.DS_Store
+*.swp
+.idea/
+.vscode/
