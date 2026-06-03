@@ -19,3 +19,8 @@ venv/
 *.swp
 .idea/
 .vscode/
+
+# Generated artifacts / local sync metadata
+.stfolder/
+job-search-queues.html
+job-search-shortlist-queue.pdf

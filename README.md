@@ -51,6 +51,8 @@ Three operations on the wiki:
 - **Query** — answer a question by searching the wiki, optionally file the answer as a new page
 - **Lint** — find stale pages, broken cross-links, orphans, contradictions
 
+Batch onboarding uploads follow the same ingest path, but first file the raw documents so the originals stay available for future reference.
+
 ## Two-repo split
 
 This repo holds the **schema** only. Your actual search data is split:
@@ -91,6 +93,22 @@ The bot runs the `apply` op against your wiki and reports back.
 
 You can use any LLM with file access (Claude Code, Cursor, plain Claude with file uploads). Point it at this repo plus your `sources/` and `wiki/` dirs. The agent reads [`SCHEMA.md`](SCHEMA.md) to learn the conventions, then operates per [`ops/`](ops/).
 
+Recommended ops for onboarding and daily use:
+
+- `ops/onboarding.md` — batch file intake and deep-profile building
+- `ops/ingest.md` — individual source ingestion
+- `ops/apply.md` — job-by-job resume tailoring and application prep
+- `ops/query.md` — status and background questions
+- `ops/lint.md` — stale page and contradiction checks
+
+## Recommended automation
+
+- nightly scan for open Forbes AI50 / adjacent AI / startup / tech / FAANG roles
+- 8:30am morning report with queue changes and best targets
+- 7:00pm evening to-do list for applications, tailoring, and outreach
+
+These schedules are intended to be reviewed before anything is pushed to GitHub.
+
 ## Layout
 
 ```
@@ -103,6 +121,7 @@ data/schema.sql     optional SQLite tracker schema
 examples/           sanitized example pages
 sources/.gitkeep    your raw inputs go here (gitignored)
 wiki/.gitkeep       your LLM-maintained wiki goes here (gitignored)
+wiki/INDEX.md       Obsidian landing page / navigation hub
 ```
 
 ## Design rules

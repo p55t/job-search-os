@@ -61,7 +61,7 @@ Wiki pages reference each other by relative markdown links: `[Cohere](../compani
 |---------------------|------------------------------------------------|
 | `job-posts/`        | Pasted or saved job descriptions (markdown)    |
 | `company-news/`     | Press releases, blog posts, leadership posts   |
-| `user-docs/`        | The human's own artifacts: promo docs, reviews, transcripts |
+| `user-docs/`        | The human's own artifacts, including onboarding uploads, promo docs, reviews, transcripts |
 | `interviews/`       | Recordings, transcripts, recruiter emails      |
 | `outreach/`         | Sent and received messages, LinkedIn DMs       |
 
@@ -71,7 +71,7 @@ Filename convention: `YYYY-MM-DD-{short-slug}.md` (or original extension for med
 
 ## 5. The ingest contract
 
-When the human files a new source — typically by pasting it in chat or dropping it into `sources/` — you perform the **ingest** operation. The full spec is in [`ops/ingest.md`](ops/ingest.md). In short:
+When the human files a new source — typically by pasting it in chat, dropping it into `sources/`, or uploading a batch for onboarding — you perform the **ingest** operation. The full spec is in [`ops/ingest.md`](ops/ingest.md) and [`ops/onboarding.md`](ops/onboarding.md). In short:
 
 1. Save the source verbatim into the right `sources/<folder>/` subdir with a dated filename.
 2. Identify which wiki pages this source touches (existing pages to update + new pages to create).
@@ -146,12 +146,30 @@ If any of those appear in a file destined for git, **stop and ask the human**.
 
 ## 11. SQLite tracker (optional)
 
-`data/schema.sql` defines a minimal SQLite database for tracking applications, briefs, and outreach actions. It complements the wiki — the wiki holds context, the database holds state transitions. Use either, both, or neither.
+`data/schema.sql` defines a minimal SQLite database for tracking applications, briefs, outreach actions, and queue state. It complements the wiki — the wiki holds context, the database holds state transitions. Use either, both, or neither.
 
 The database file (`data/jobsearch.db`) is gitignored.
 
 ---
 
-## 12. Update protocol
+## 12. Index page
 
-If you (the AI) want to change this SCHEMA.md — for example, to add a new page type — propose it to the human in chat first. Don't edit silently. The schema is the contract; only the human signs new contracts.
+`wiki/INDEX.md` is the optional Obsidian landing page. It should stay lightweight: a curated navigation hub to the most important wiki pages, not a second database or reporting layer.
+
+---
+
+## 13. Scheduled automation
+
+The Job Search OS can run as a recurring pipeline:
+
+- **Nightly scan:** search Forbes AI50 and adjacent AI/startup/tech/FAANG companies for open U.S. roles that fit the user's lane (forward-deployed PM, presales, solutions, applied AI PM, platform PM, customer-facing technical PM). Verify status and posted date when possible, then add new roles to `wiki/queue/target-queue.md` and create/update matching `wiki/jobs/` pages.
+- **Morning report (8:30):** summarize the updated queue, highlight new additions/removals, and surface the best daily application targets.
+- **Evening todo (7pm):** produce a concise application/outreach to-do list from the current queue.
+
+Queue state stays split into **favourite**, **application**, and **applied/archive** buckets. New live roles belong in the application queue and are sorted by fit.
+
+---
+
+## 14. Update protocol
+
+If you (the AI) want to change this SCHEMA.md — for example, to add a new page type or automation rule — propose it to the human in chat first. Don't edit silently. The schema is the contract; only the human signs new contracts.

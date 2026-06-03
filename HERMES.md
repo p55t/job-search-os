@@ -1,6 +1,6 @@
 # Hermes Integration
 
-This guide is for users running [Hermes Agent](https://github.com/NousResearch/hermes-agent). Hermes becomes the runtime that executes the OS — ingest, query, lint, apply are skill-driven.
+This guide is for users running [Hermes Agent](https://github.com/NousResearch/hermes-agent). Hermes becomes the runtime that executes the OS — onboarding, ingest, query, lint, and apply are skill-driven.
 
 ## Install
 
@@ -41,6 +41,7 @@ The workspace lives at `~/.hermes/workspace/job-search-os/`.
 Before doing anything, read `SCHEMA.md` to load the conventions. Then read `wiki/profile/me.md` to load the human's profile.
 
 For each user request, follow the matching op in `ops/`:
+- batch uploads / deep-profile onboarding → `ops/onboarding.md`
 - new job posting → `ops/ingest.md` + `ops/apply.md`
 - "what should I do today" → `ops/lint.md` + `ops/query.md`
 - a question about the human's background → `ops/query.md`
@@ -58,6 +59,11 @@ Never commit anything from `sources/` or `wiki/` to git. These dirs are gitignor
    - Runs `ops/ingest.md` — updates `wiki/companies/{co}.md`, creates `wiki/jobs/{date}-{co}-{slug}.md`.
    - Replies with the fit score and recommended next action.
 
+0. **Onboarding batch uploaded** — user sends a bundle of docs.
+   - Hermes saves raw files under `sources/user-docs/onboarding/`.
+   - Runs `ops/onboarding.md` — updates profile, positioning, evidence, and any relevant company/role pages.
+   - Keeps the originals on disk for future reference.
+
 2. **Apply** — user says "apply to that."
    - Hermes runs `ops/apply.md` — drafts a resume in `wiki/resumes/`, picks evidence pages.
    - Returns the resume markdown for review.
@@ -69,6 +75,14 @@ Never commit anything from `sources/` or `wiki/` to git. These dirs are gitignor
 4. **Weekly lint** — user says "let's review where we are."
    - Hermes runs `ops/lint.md` — stale pages, orphans, broken links, contradictions.
    - Returns a punch list.
+
+## Recommended automation
+
+- nightly scan for open Forbes AI50 / adjacent AI / startup / tech / FAANG roles
+- 8:30am morning report with queue changes and best targets
+- 7:00pm evening to-do list for applications, tailoring, and outreach
+
+Review the schedule design before pushing it to GitHub or wiring it into a cron system.
 
 ## Federation across Hermes nodes
 
