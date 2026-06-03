@@ -24,3 +24,8 @@ venv/
 .stfolder/
 job-search-queues.html
 job-search-shortlist-queue.pdf
+
+# Syncthing conflict files
+*.sync-conflict-*.md
+*.sync-conflict-*.sql
+*.sync-conflict-*.gitignore

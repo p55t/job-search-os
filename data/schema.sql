@@ -54,3 +54,23 @@ CREATE TABLE IF NOT EXISTS outreach_actions (
 CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
 CREATE INDEX IF NOT EXISTS idx_applications_next_action ON applications(next_action_at);
 CREATE INDEX IF NOT EXISTS idx_outreach_last_touch ON outreach_contacts(last_touch);
+
+-- FTS5 full-text search index over wiki pages.
+-- Populated by scripts/build-wiki-index.py (runs via Hermes cron every 30 min).
+-- Query: SELECT path, title, snippet(wiki_fts,4,'→','←','...',20) FROM wiki_fts WHERE wiki_fts MATCH 'query' ORDER BY rank;
+CREATE VIRTUAL TABLE IF NOT EXISTS wiki_fts USING fts5(
+  path,        -- relative path from workspace root
+  title,       -- H1 heading or derived title
+  section,     -- H2/H3 heading this chunk belongs to
+  type,        -- companies | evidence | resumes | profile | outreach | queue | other
+  content,     -- stripped markdown text
+  tokenize='porter ascii'
+);
+
+CREATE TABLE IF NOT EXISTS wiki_meta (
+  path TEXT PRIMARY KEY,
+  title TEXT,
+  type TEXT,
+  related TEXT,         -- raw ## Related block for quick link lookup
+  indexed_at TEXT
+);

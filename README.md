@@ -16,121 +16,57 @@ Most job-search tools optimize for volume. This one optimizes for signal.
 - Keep one source of truth per entity (you, each company, each role, each contact).
 - Let the AI maintain cross-references; humans curate sources and direction.
 
-## Architecture — the LLM Wiki pattern
+## Architecture
 
-Inspired by [Karpathy's LLM Wiki concept](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f). Three layers:
+Inspired by [Karpathy's LLM Wiki concept](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f). Four layers:
 
 ```
-┌───────────────────────────────────────────────────────┐
-│  SOURCES  (immutable)                                 │
-│  Raw inputs: job posts, company news, your own docs,  │
-│  interview transcripts, referral emails, LinkedIn DMs │
-└───────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  SOURCES  (immutable raw inputs)                                │
+│  job posts · company news · your docs · transcripts · DMs      │
+└─────────────────────────────────────────────────────────────────┘
+                      │ ingest (ops/ingest.md)
+                      ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  WIKI  (LLM-maintained, gitignored)                             │
+│  profile · positioning · companies · jobs · outreach           │
+│  evidence · resumes · queue · interviews                        │
+│  Every page ends with [[wikilinks]] in a ## Related section     │
+└─────────────────────────────────────────────────────────────────┘
                       │
-                      ▼ ingest
-┌───────────────────────────────────────────────────────┐
-│  WIKI  (LLM-maintained markdown)                      │
-│  One page per entity, heavily cross-linked            │
-│  profile, companies, roles, jobs, outreach,           │
-│  interviews, evidence (story bank), resumes           │
-└───────────────────────────────────────────────────────┘
-                      │
-                      ▼ guides
-┌───────────────────────────────────────────────────────┐
-│  SCHEMA  (this repo)                                  │
-│  SCHEMA.md — conventions, page types, cross-link rules│
-│  ops/      — ingest, query, lint, apply workflows     │
-│  templates/— skeleton for each page type              │
-│  prompts/  — voice and style rules                    │
-└───────────────────────────────────────────────────────┘
+          ┌───────────┴────────────┐
+          ▼                        ▼
+┌──────────────────┐    ┌──────────────────────────────────────┐
+│  FTS5 SEARCH     │    │  OBSIDIAN GRAPH VIEW (laptop)        │
+│  data/wiki-      │    │  Synced via Syncthing · local vault  │
+│  index.db        │    │  [[wikilinks]] render as graph edges │
+│  Rebuilt every   │    │  Filter: exclude sources/            │
+│  30 min by cron  │    └──────────────────────────────────────┘
+└──────────────────┘
+          │ agent queries
+          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  SQLITE TRACKER  (optional, gitignored)                         │
+│  data/jobsearch.db — application state, outreach pipeline       │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-Three operations on the wiki:
+### How the agent navigates the wiki
 
-- **Ingest** — add a source, update affected pages, flag contradictions
-- **Query** — answer a question by searching the wiki, optionally file the answer as a new page
-- **Lint** — find stale pages, broken cross-links, orphans, contradictions
+1. **Bootstrap every session:** read `SCHEMA.md` → `wiki/profile/me.md` → `wiki/profile/positioning.md`
+2. **Search:** query `data/wiki-index.db` (FTS5) for ranked, relevant pages — one SQL call instead of grepping 50 files
+3. **Navigate:** follow `[[wikilinks]]` in each page's `## Related` section to pull connected context
+4. **Write:** every new/updated wiki page gets a `## Related` section with `[[wikilinks]]` — keeps the graph connected and the index fresh
 
-Batch onboarding uploads follow the same ingest path, but first file the raw documents so the originals stay available for future reference.
+### Obsidian sync
 
-## Two-repo split
-
-This repo holds the **schema** only. Your actual search data is split:
-
-| Layer    | Lives in                       | Contains                                    |
-|----------|--------------------------------|---------------------------------------------|
-| Schema   | this repo                      | conventions, templates, prompts, ops        |
-| Sources  | your machine (`sources/`)      | raw, immutable inputs                       |
-| Wiki     | your machine (`wiki/`)         | LLM-maintained pages with your real data    |
-
-`.gitignore` ensures `sources/` and `wiki/` never ship to git. Your PII stays on your machine.
-
-## Quickstart with Hermes Agent
-
-If you're running [Hermes Agent](https://github.com/NousResearch/hermes-agent):
-
-```bash
-# Clone the schema into your Hermes workspace
-mkdir -p ~/.hermes/workspace
-cd ~/.hermes/workspace
-git clone https://github.com/<you>/job-search-os.git
-cd job-search-os
-
-# Bootstrap your sources and wiki
-mkdir -p sources/{job-posts,company-news,user-docs,interviews,outreach}
-mkdir -p wiki/{profile,companies,roles,jobs,outreach,interviews,evidence,resumes}
-cp templates/profile.md wiki/profile/me.md
-$EDITOR wiki/profile/me.md   # fill in your actual profile
-```
-
-Then install the companion Hermes skill (see [`HERMES.md`](HERMES.md)) and chat with your bot:
-
-> "I want to apply to <https://job-url>. Score it and draft a tailored resume."
-
-The bot runs the `apply` op against your wiki and reports back.
-
-## Quickstart without Hermes
-
-You can use any LLM with file access (Claude Code, Cursor, plain Claude with file uploads). Point it at this repo plus your `sources/` and `wiki/` dirs. The agent reads [`SCHEMA.md`](SCHEMA.md) to learn the conventions, then operates per [`ops/`](ops/).
-
-Recommended ops for onboarding and daily use:
-
-- `ops/onboarding.md` — batch file intake and deep-profile building
-- `ops/ingest.md` — individual source ingestion
-- `ops/apply.md` — job-by-job resume tailoring and application prep
-- `ops/query.md` — status and background questions
-- `ops/lint.md` — stale page and contradiction checks
-
-## Recommended automation
-
-- nightly scan for open Forbes AI50 / adjacent AI / startup / tech / FAANG roles
-- 8:30am morning report with queue changes and best targets
-- 7:00pm evening to-do list for applications, tailoring, and outreach
-
-These schedules are intended to be reviewed before anything is pushed to GitHub.
-
-## Layout
+The wiki lives on a Hermes/LXC host. For daily reading/navigation on a laptop:
 
 ```
-SCHEMA.md           the operating manual — read this first
-HERMES.md           Hermes-specific integration
-ops/                workflows: ingest, query, lint, apply
-templates/          skeletons for each wiki page type
-prompts/            voice, style, anti-slop, resume rules
-data/schema.sql     optional SQLite tracker schema
-examples/           sanitized example pages
-sources/.gitkeep    your raw inputs go here (gitignored)
-wiki/.gitkeep       your LLM-maintained wiki goes here (gitignored)
-wiki/INDEX.md       Obsidian landing page / navigation hub
+host wiki/ ──Syncthing──▶ ~/syncthing/job-search-os/   ← open as Obsidian vault
+                          ~/syncthing/job-search-private/ (private layer)
 ```
 
-## Design rules
+Open `~/syncthing/` as a single Obsidian vault. In Graph View, exclude `sources/` and `src/` to see only the connected wiki.
 
-1. **One entity per page.** A company is one page. A job is one page. A contact is one page. Pages link to each other; they don't duplicate each other.
-2. **Sources are immutable.** Never edit a file in `sources/`. Update the wiki instead.
-3. **Verified facts only in resumes.** Every metric in a generated resume traces back to an evidence-bank page or a source. No invented numbers.
-4. **The schema is small.** If you can't keep it in your head, it's too big.
 
-## License
-
-MIT — fork it, rewrite it, make it yours.

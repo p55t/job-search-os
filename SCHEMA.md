@@ -40,16 +40,24 @@ Every page in `wiki/` belongs to exactly one of these types. The template lives 
 
 ## 3. Cross-linking rules
 
-Wiki pages reference each other by relative markdown links: `[Cohere](../companies/cohere.md)`.
+Wiki pages reference each other using **Obsidian `[[wikilinks]]`** format — e.g. `[[companies/cohere]]`, `[[evidence/career-accomplishments]]`. This is required for Obsidian Graph View to render connections. Do NOT use relative markdown path links for cross-references.
 
 | When you write... | You must link to... |
 |-------------------|---------------------|
-| A `job` page      | the `company` page + the `role` page + any `evidence` you'd use |
+| A `job` page      | the `company` page + the `role` page + any `evidence` you'd use. End the page with a `## Related` section listing each as `[[companies/slug]]`, `[[evidence/slug]]` etc. |
 | An `interview` page | the `job` page + the `company` page |
 | A `resume` page   | the `job` page + every `evidence` page it draws from |
 | An `outreach` page | the `company` page + any `job` page in scope |
 
 **Orphans are bugs.** If a page has no inbound links, either link it or delete it during lint.
+
+**Format:** Always end every wiki page with a `## Related` section using `[[wikilinks]]`. Example:
+```
+## Related
+- [[profile/me]]
+- [[companies/stripe]]
+- [[evidence/career-accomplishments]]
+```
 
 ---
 
@@ -144,11 +152,22 @@ If any of those appear in a file destined for git, **stop and ask the human**.
 
 ---
 
-## 11. SQLite tracker (optional)
+## 11. SQLite tracker + FTS5 search index
 
-`data/schema.sql` defines a minimal SQLite database for tracking applications, briefs, outreach actions, and queue state. It complements the wiki — the wiki holds context, the database holds state transitions. Use either, both, or neither.
+**State tracker:** `data/schema.sql` defines tables for applications, outreach contacts, and actions. The wiki holds context; the database holds state transitions. `data/jobsearch.db` is gitignored.
 
-The database file (`data/jobsearch.db`) is gitignored.
+**Full-text search index:** `data/wiki-index.db` is an FTS5 index over all wiki pages, rebuilt every 30 min by a Hermes cron job. Use it to find relevant pages instead of grepping:
+
+```sql
+-- Find pages most relevant to a query
+SELECT path, title, snippet(wiki_fts, 4, '→', '←', '...', 20) as excerpt
+FROM wiki_fts WHERE wiki_fts MATCH 'pricing experimentation healthcare'
+ORDER BY rank LIMIT 5;
+```
+
+Rebuild manually: `python3 scripts/build-wiki-index.py`
+
+Both database files are gitignored. The builder script (`scripts/build-wiki-index.py`) is tracked.
 
 ---
 
@@ -173,3 +192,14 @@ Queue state stays split into **favourite**, **application**, and **applied/archi
 ## 14. Update protocol
 
 If you (the AI) want to change this SCHEMA.md — for example, to add a new page type or automation rule — propose it to the human in chat first. Don't edit silently. The schema is the contract; only the human signs new contracts.
+
+## 15. Agent search workflow
+
+When answering a question or starting an operation, the agent should use this order:
+
+1. **Bootstrap** (every session): read `SCHEMA.md`, `wiki/profile/me.md`, `wiki/profile/positioning.md`
+2. **Search** (find relevant pages): query `data/wiki-index.db` with FTS5 — faster and more accurate than grep
+3. **Navigate** (follow connections): for each relevant page, read its `## Related` wikilinks to pull connected context
+4. **Act** (write/update): every page written/updated must end with a `## Related` section using `[[wikilinks]]`
+
+This ensures the agent always has the right context without reading all 370+ pages on every turn.

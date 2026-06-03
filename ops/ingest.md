@@ -46,7 +46,7 @@ For each affected page:
 - If it doesn't exist, create it from `templates/<type>.md`.
 - Update the relevant section. Append, don't overwrite, unless the source explicitly supersedes an old fact.
 - Add a citation: `→ sources/<folder>/<filename>` at the end of the changed paragraph or in a `## Sources` section.
-- Add cross-links per [SCHEMA § 3](../SCHEMA.md#3-cross-linking-rules).
+- Add cross-links per [SCHEMA § 3](../SCHEMA.md#3-cross-linking-rules). Use `[[wikilinks]]` format. End every page with a `## Related` section listing all linked pages as `- [[path/slug]]` (no `.md` extension). This is required for Obsidian Graph View.
 
 ### 4. Flag contradictions
 
