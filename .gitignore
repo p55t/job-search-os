@@ -1,31 +1,10 @@
-# Private layers — never commit your sources or wiki
-sources/*
-!sources/.gitkeep
-wiki/*
-!wiki/.gitkeep
-
-# SQLite databases
+# Private / derived job-search data
+artifacts/
 data/*.db
 data/*.db-*
-
-# Python noise (if you ever add scripts)
+kb/
+resumes/
+sources/
+wiki/
 __pycache__/
 *.pyc
-.venv/
-venv/
-
-# Editor noise
-.DS_Store
-*.swp
-.idea/
-.vscode/
-
-# Generated artifacts / local sync metadata
-.stfolder/
-job-search-queues.html
-job-search-shortlist-queue.pdf
-
-# Syncthing conflict files
-*.sync-conflict-*.md
-*.sync-conflict-*.sql
-*.sync-conflict-*.gitignore

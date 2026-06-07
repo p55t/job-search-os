@@ -16,9 +16,17 @@ Most job-search tools optimize for volume. This one optimizes for signal.
 - Keep one source of truth per entity (you, each company, each role, each contact).
 - Let the AI maintain cross-references; humans curate sources and direction.
 
+## Operating model
+
+- `prompts/` captures reusable instructions for skill capture and short experiments.
+- `wiki/ops/` holds the stable operating contract and the change log.
+- `wiki/strategies/` holds the current best playbook.
+- `wiki/comparisons/` holds decision guides.
+- If a workflow repeats often enough to be worth automation, capture it as a Hermes skill and mirror the recipe here.
+
 ## Architecture
 
-Inspired by [Karpathy's LLM Wiki concept](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f). Four layers:
+Inspired by [Karpathy's LLM Wiki concept](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f). The operating model is:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -30,20 +38,22 @@ Inspired by [Karpathy's LLM Wiki concept](https://gist.github.com/karpathy/442a6
 ┌─────────────────────────────────────────────────────────────────┐
 │  WIKI  (LLM-maintained, gitignored)                             │
 │  profile · positioning · companies · jobs · outreach           │
-│  evidence · resumes · queue · interviews                        │
+│  evidence · resumes · queue · interviews · strategies          │
+│  ops · comparisons                                              │
 │  Every page ends with [[wikilinks]] in a ## Related section     │
 └─────────────────────────────────────────────────────────────────┘
                       │
           ┌───────────┴────────────┐
+          │                        │
           ▼                        ▼
-┌──────────────────┐    ┌──────────────────────────────────────┐
-│  FTS5 SEARCH     │    │  OBSIDIAN GRAPH VIEW (laptop)        │
-│  data/wiki-      │    │  Synced via Syncthing · local vault  │
-│  index.db        │    │  [[wikilinks]] render as graph edges │
-│  Rebuilt every   │    │  Filter: exclude sources/            │
-│  30 min by cron  │    └──────────────────────────────────────┘
-└──────────────────┘
-          │ agent queries
+┌────────────────────────┐   ┌────────────────────────────────────┐
+│  GENERATED NAVIGATION  │   │  FTS5 SEARCH                        │
+│  wiki/INDEX.md         │   │  data/wiki-index.db                │
+│  wiki/aliases.md       │   │  Rebuilt every 30 min by cron      │
+│  scripts/wiki.py index │   │  Query from the CLI or SQLite      │
+│  scripts/wiki.py lint  │   └────────────────────────────────────┘
+└────────────────────────┘
+          │
           ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  SQLITE TRACKER  (optional, gitignored)                         │
@@ -54,9 +64,11 @@ Inspired by [Karpathy's LLM Wiki concept](https://gist.github.com/karpathy/442a6
 ### How the agent navigates the wiki
 
 1. **Bootstrap every session:** read `SCHEMA.md` → `wiki/profile/me.md` → `wiki/profile/positioning.md`
-2. **Search:** query `data/wiki-index.db` (FTS5) for ranked, relevant pages — one SQL call instead of grepping 50 files
-3. **Navigate:** follow `[[wikilinks]]` in each page's `## Related` section to pull connected context
-4. **Write:** every new/updated wiki page gets a `## Related` section with `[[wikilinks]]` — keeps the graph connected and the index fresh
+2. **Navigate first:** open `wiki/INDEX.md` to find the relevant company/role/evidence pages
+3. **Alias-resolve:** use `wiki/aliases.md` when a company or role is referred to by a customer-facing name
+4. **Search:** query `data/wiki-index.db` (FTS5) for ranked, relevant pages when the index is not enough
+5. **Write:** every new/updated wiki page gets a `## Related` section with `[[wikilinks]]` — keeps the graph connected and the projections fresh
+6. **Promote reusable work:** keep current-best-practice guidance in `wiki/strategies/`, record decisions and change outcomes in `wiki/ops/change-log.md`, and only export a Hermes skill when the workflow is stable enough to reuse outside the repo.
 
 ### Obsidian sync
 

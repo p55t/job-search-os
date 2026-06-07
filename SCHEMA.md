@@ -14,7 +14,20 @@ This file plays the role of `CLAUDE.md` in [Karpathy's LLM Wiki gist](https://gi
 | Wiki     | `wiki/`        | The AI       | Continuously maintained |
 | Schema   | repo root      | The human    | Stable; changes are deliberate |
 
+
 **You (the AI) own the wiki.** You never modify a source file. You always update the wiki when a new source comes in.
+
+---
+
+## 1b. Taxonomy and file roles
+
+- `prompts/` — reusable instructions for capture, review, and experiment runs.
+- `wiki/ops/` — operational contracts, reusable workflow notes, and the change log.
+- `wiki/strategies/` — durable playbooks and current-best-practice guidance.
+- `wiki/comparisons/` — side-by-side decision guides that choose between approaches.
+- `skills/` — if a workflow graduates into a reusable Hermes skill, keep the executable skill in Hermes and mirror the human-readable recipe here.
+
+Rule of thumb: prompts steer one run, wiki pages preserve durable knowledge, and skills are executable recipes you can reuse across sessions.
 
 ---
 
@@ -35,6 +48,8 @@ Every page in `wiki/` belongs to exactly one of these types. The template lives 
 | resume     | `wiki/resumes/{date}-{co}-{slug}.md` | 1 per generated resume | A tailored output |
 
 **Slugs** are lowercase, hyphen-separated, stable. `cohere-platform-pm`, not `Cohere Platform PM Final v3`.
+
+**Derived navigation:** `wiki/INDEX.md` is a generated catalog, `wiki/aliases.md` is a generated alias map, `scripts/wiki.py index` regenerates both, and `scripts/wiki.py lint` checks broken links and orphaned pages before commit.
 
 ---
 
@@ -84,7 +99,8 @@ When the human files a new source — typically by pasting it in chat, dropping 
 1. Save the source verbatim into the right `sources/<folder>/` subdir with a dated filename.
 2. Identify which wiki pages this source touches (existing pages to update + new pages to create).
 3. Update each page in place. Add cross-links. Flag any contradictions inline using `**CONTRADICTION:**` markers.
-4. Summarize the diff to the human in one paragraph: what was added, what changed, what contradicts.
+4. Regenerate `wiki/INDEX.md` and `wiki/aliases.md` if the page set changed, then run `scripts/wiki.py lint`.
+5. Summarize the diff to the human in one paragraph: what was added, what changed, what contradicts.
 
 **Never lose a source.** Once it's filed, it stays.
 
@@ -108,6 +124,7 @@ Periodic health check, full spec in [`ops/lint.md`](ops/lint.md):
 - **Orphan**: a page with zero inbound wiki links.
 - **Broken link**: a link to a wiki page that no longer exists.
 - **Contradiction**: a fact that appears with different values on two pages.
+- **Catalog drift**: `wiki/INDEX.md` or `wiki/aliases.md` is out of sync with the current wiki pages.
 
 Run lint at the start of any session that begins with "let's review where we are."
 
@@ -165,15 +182,15 @@ FROM wiki_fts WHERE wiki_fts MATCH 'pricing experimentation healthcare'
 ORDER BY rank LIMIT 5;
 ```
 
-Rebuild manually: `python3 scripts/build-wiki-index.py`
+Rebuild manually: `python3 scripts/wiki.py index`
 
-Both database files are gitignored. The builder script (`scripts/build-wiki-index.py`) is tracked.
+Both database files are gitignored. The utility script (`scripts/wiki.py`) is tracked. Lint reports broken links by default and reports orphans unless you pass `--strict-orphans`.
 
 ---
 
 ## 12. Index page
 
-`wiki/INDEX.md` is the optional Obsidian landing page. It should stay lightweight: a curated navigation hub to the most important wiki pages, not a second database or reporting layer.
+`wiki/INDEX.md` is the lightweight navigation hub for the wiki. It should stay curated and generated from the current pages, not become a second database or reporting layer.
 
 ---
 
