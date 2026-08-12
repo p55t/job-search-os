@@ -173,6 +173,8 @@ If any of those appear in a file destined for git, **stop and ask the human**.
 
 **State tracker:** `data/schema.sql` defines tables for applications, outreach contacts, and actions. The wiki holds context; the database holds state transitions. `data/jobsearch.db` is gitignored.
 
+**Canonical state rule:** `data/jobsearch.db` is the source of truth for application state, applied/archive records, follow-up dates, and 90-day applied-company cooldowns. `wiki/queue/target-queue.md` is the human-readable ranked queue view and should be reconciled from the database when state changes. See [[ops/source-of-truth]].
+
 **Full-text search index:** `data/wiki-index.db` is an FTS5 index over all wiki pages, rebuilt every 30 min by a Hermes cron job. Use it to find relevant pages instead of grepping:
 
 ```sql
@@ -202,7 +204,7 @@ The Job Search OS can run as a recurring pipeline:
 - **Morning report (8:30):** summarize the updated queue, highlight new additions/removals, and surface the best daily application targets.
 - **Evening todo (7pm):** produce a concise application/outreach to-do list from the current queue.
 
-Queue state stays split into **favourite**, **application**, and **applied/archive** buckets. New live roles belong in the application queue and are sorted by fit.
+Every scheduled automation must bootstrap from [[ops/source-of-truth]] and query `data/jobsearch.db` before reading or rewriting the queue. Queue state stays split into **favourite**, **application**, and **applied/archive** buckets in the rendered queue view. New live roles belong in the application queue and are sorted by fit, but applied/archive status and cooldowns come from the database.
 
 ---
 
@@ -214,9 +216,10 @@ If you (the AI) want to change this SCHEMA.md — for example, to add a new page
 
 When answering a question or starting an operation, the agent should use this order:
 
-1. **Bootstrap** (every session): read `SCHEMA.md`, `wiki/profile/me.md`, `wiki/profile/positioning.md`
-2. **Search** (find relevant pages): query `data/wiki-index.db` with FTS5 — faster and more accurate than grep
-3. **Navigate** (follow connections): for each relevant page, read its `## Related` wikilinks to pull connected context
-4. **Act** (write/update): every page written/updated must end with a `## Related` section using `[[wikilinks]]`
+1. **Bootstrap** (every session): read `SCHEMA.md`, `wiki/ops/source-of-truth.md`, `wiki/profile/me.md`, `wiki/profile/positioning.md`
+2. **State check** (before recommendations or queue edits): query `data/jobsearch.db` for application status, applied/archive rows, next actions, and 90-day cooldowns
+3. **Search** (find relevant pages): query `data/wiki-index.db` with FTS5 — faster and more accurate than grep
+4. **Navigate** (follow connections): for each relevant page, read its `## Related` wikilinks to pull connected context
+5. **Act** (write/update): every page written/updated must end with a `## Related` section using `[[wikilinks]]`; any state transition must be written to `data/jobsearch.db` before updating the queue view
 
 This ensures the agent always has the right context without reading all 370+ pages on every turn.

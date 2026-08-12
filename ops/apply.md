@@ -8,12 +8,16 @@ The end-to-end "I want to apply to this role" flow. Composes ingest, query, and 
 
 ## Procedure
 
+Before starting, read `SCHEMA.md` and `wiki/ops/source-of-truth.md`. Application state lives in `data/jobsearch.db`; update it before changing the queue page.
+
 ### 1. Make sure the job is ingested
 
 If the job page doesn't exist yet, run [ingest](ingest.md) first. By the end of step 1 you must have:
 
 - `wiki/jobs/{date}-{co}-{slug}.md` (the job page)
 - `wiki/companies/{co}.md` (the company page, possibly newly created or updated)
+
+Check `data/jobsearch.db` for the company and role before continuing. If the company is within the 90-day applied-company cooldown, stop and ask the human to explicitly reopen it before drafting or recommending another application.
 
 ### 2. Score the role
 
@@ -58,6 +62,8 @@ Update the job page (`wiki/jobs/{slug}.md`) to link the resume. Update the resum
 Before reporting back, scan `wiki/outreach/` for any contact at this company. If one exists and last_touch is stale, suggest re-warming as part of the application path.
 
 ### 7. Report
+
+Before reporting, upsert the application row using its non-null `wiki_page` as the identity: `INSERT ... ON CONFLICT(wiki_page) WHERE wiki_page IS NOT NULL DO UPDATE ...`. Record the current status (`new`, `scored`, or `applied` as appropriate), URL, and next action date if known. Then reconcile `wiki/queue/target-queue.md` from that state and rebuild the wiki index.
 
 Return:
 

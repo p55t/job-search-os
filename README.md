@@ -56,19 +56,30 @@ Inspired by [Karpathy's LLM Wiki concept](https://gist.github.com/karpathy/442a6
           │
           ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  SQLITE TRACKER  (optional, gitignored)                         │
+│  SQLITE TRACKER  (canonical state, gitignored)                  │
 │  data/jobsearch.db — application state, outreach pipeline       │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ### How the agent navigates the wiki
 
-1. **Bootstrap every session:** read `SCHEMA.md` → `wiki/profile/me.md` → `wiki/profile/positioning.md`
-2. **Navigate first:** open `wiki/INDEX.md` to find the relevant company/role/evidence pages
-3. **Alias-resolve:** use `wiki/aliases.md` when a company or role is referred to by a customer-facing name
-4. **Search:** query `data/wiki-index.db` (FTS5) for ranked, relevant pages when the index is not enough
-5. **Write:** every new/updated wiki page gets a `## Related` section with `[[wikilinks]]` — keeps the graph connected and the projections fresh
-6. **Promote reusable work:** keep current-best-practice guidance in `wiki/strategies/`, record decisions and change outcomes in `wiki/ops/change-log.md`, and only export a Hermes skill when the workflow is stable enough to reuse outside the repo.
+1. **Bootstrap every session:** read `SCHEMA.md` → `wiki/ops/source-of-truth.md` → `wiki/profile/me.md` → `wiki/profile/positioning.md`.
+2. **Check state first:** query `data/jobsearch.db` and `applied_company_cooldowns` before recommending or changing a role; the queue is a rendered view.
+3. **Navigate first:** open `wiki/INDEX.md` to find the relevant company/role/evidence pages.
+4. **Alias-resolve:** use `wiki/aliases.md` when a company or role is referred to by a customer-facing name.
+5. **Search:** query `data/wiki-index.db` (FTS5) for ranked, relevant pages when the index is not enough.
+6. **Write:** record state transitions in SQLite before reconciling `wiki/queue/target-queue.md`; every new/updated wiki page gets a `## Related` section with `[[wikilinks]]`.
+7. **Promote reusable work:** keep current-best-practice guidance in `wiki/strategies/`, record decisions and change outcomes in `wiki/ops/change-log.md`, and only export a Hermes skill when the workflow is stable enough to reuse outside the repo.
+
+### Private-state bootstrap
+
+The repository intentionally does not contain job-search data. Create the private tracker once before using stateful workflows:
+
+```bash
+sqlite3 data/jobsearch.db < data/schema.sql
+```
+
+Create `wiki/ops/source-of-truth.md` from `templates/source-of-truth.md` and fill it with the private operating contract. Do not commit the resulting wiki page.
 
 ### Obsidian sync
 

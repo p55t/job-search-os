@@ -50,12 +50,14 @@ These pages should always exist:
 
 If either is missing, report it as critical.
 
-### 6. Pipeline freshness (optional, if using SQLite)
+### 6. Pipeline freshness (required once initialized)
+
+SQLite is required for Job Search OS state after initializing the private tracker with `sqlite3 data/jobsearch.db < data/schema.sql`. Treat it as authoritative for application/archive state and report queue/database drift. Do not surface follow-up reminders/tasks.
 
 Query `data/jobsearch.db`:
 
-- Applications in `status='applied'` with no follow-up logged in 14 days → flag for follow-up.
-- Outreach contacts last_touch >30 days, status not closed → flag for re-warm.
+- Companies that appear in `wiki/queue/target-queue.md` active queues while their latest `applications.applied_at` is within the 90-day cooldown → critical drift.
+- Applied archive rows in `wiki/queue/target-queue.md` missing from `data/jobsearch.db` → critical drift; resolve through the application write protocol before the next cron/report.
 
 ## Output
 

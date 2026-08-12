@@ -11,6 +11,8 @@ Answer a question against the wiki. Synthesize, cite, optionally file the answer
 
 ### 1. Search
 
+Bootstrap first from `SCHEMA.md` and `wiki/ops/source-of-truth.md`. For any question about current search state, application history, cooldowns, follow-ups, or what to apply to next, query `data/jobsearch.db` before relying on `wiki/queue/target-queue.md` or previous Discord reports. The database is authoritative for state; the queue page is the rendered view.
+
 Identify which wiki pages are likely relevant:
 
 | Question shape                              | Pages to read                              |
@@ -19,7 +21,8 @@ Identify which wiki pages are likely relevant:
 | About a company                              | `wiki/companies/{slug}.md`, related `wiki/jobs/`, `wiki/outreach/` |
 | About a role family                          | `wiki/roles/{slug}.md`, related `wiki/companies/` |
 | State of a specific job                      | `wiki/jobs/{slug}.md` + linked pages       |
-| Outreach status                              | `wiki/outreach/*` + `data/jobsearch.db` (if used) |
+| Outreach status                              | `wiki/outreach/*` + `data/jobsearch.db` |
+| Application/archive/cooldown status          | `data/jobsearch.db` first, then `wiki/queue/target-queue.md` as display context |
 | "What should I do today"                     | Run [lint](lint.md) first, then summarize  |
 
 Use grep over `wiki/` if you're not sure where something lives. The schema gives you topology — use it.
