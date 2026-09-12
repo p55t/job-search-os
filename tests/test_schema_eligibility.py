@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Smoke tests for the public 20260912 SQLite eligibility schema."""
+"""Smoke tests for the public 20260913 SQLite eligibility schema."""
 from __future__ import annotations
 
 import sqlite3
@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / 'data/schema.sql'
 MIGRATION = ROOT / 'data/migrations/20260912_schema_eligibility.py'
+COOLDOWN_MIGRATION = ROOT / 'data/migrations/20260913_fix_cooldown_after_reject.py'
 
 
 def test_fresh_schema() -> None:
@@ -19,7 +20,7 @@ def test_fresh_schema() -> None:
         conn = sqlite3.connect(db)
         conn.executescript(SCHEMA.read_text())
         version = conn.execute('PRAGMA user_version').fetchone()[0]
-        assert version == 20260912
+        assert version == 20260913
         conn.execute(
             "INSERT INTO applications (company,company_key,role,url,status,primary_lane,health_primary,gate_outcome,gate_evaluated_at,gate_policy_version,ats_vendor,discovery_channel,ai_depth,level_band,discovered_at,discovered_by,provenance_ref) "
             "VALUES ('Example Co','example','Staff PM','https://example.test/role','scored','infra_platform',0,'pass','2026-09-12T00:00:00Z','test','Example ATS','direct_ats',2,'staff','2026-09-12','test','test')"
@@ -27,6 +28,37 @@ def test_fresh_schema() -> None:
         assert conn.execute('SELECT count(*) FROM v_eligible_apply_now').fetchone()[0] == 1
         conn.execute("INSERT INTO applications (company,company_key,role,status,applied_at) VALUES ('Example Co','example','Old role','applied','2026-09-12')")
         assert conn.execute('SELECT count(*) FROM v_eligible_apply_now').fetchone()[0] == 0
+        conn.close()
+
+
+def test_terminal_submission_status_keeps_company_on_cooldown() -> None:
+    with tempfile.TemporaryDirectory() as temp:
+        db = Path(temp) / 'fresh.db'
+        conn = sqlite3.connect(db)
+        conn.executescript(SCHEMA.read_text())
+        conn.execute(
+            "INSERT INTO applications (company, company_key, role, status, applied_at) "
+            "VALUES ('Terminal Co', 'terminal', 'Submitted PM', 'rejected', '2026-09-08')"
+        )
+        conn.execute(
+            "INSERT INTO applications (company, company_key, role, status) "
+            "VALUES ('Scored Only Co', 'scored-only', 'Unsubmitted PM', 'scored')"
+        )
+        conn.execute(
+            "INSERT INTO applications (company, company_key, role, url, status, primary_lane, health_primary, gate_outcome, ai_depth, level_band) "
+            "VALUES ('Terminal Co', 'terminal', 'New PM', 'https://example.test/new-role', 'scored', 'infra_platform', 0, 'pass', 2, 'staff')"
+        )
+        cooldown = conn.execute(
+            "SELECT latest_applied_at, cooldown_until FROM applied_company_cooldowns "
+            "WHERE company_key = 'terminal'"
+        ).fetchone()
+        assert cooldown == ('2026-09-08', '2026-12-07')
+        assert conn.execute(
+            "SELECT count(*) FROM applied_company_cooldowns WHERE company_key = 'scored-only'"
+        ).fetchone()[0] == 0
+        assert conn.execute(
+            "SELECT count(*) FROM v_eligible_apply_now WHERE company_key = 'terminal'"
+        ).fetchone()[0] == 0
         conn.close()
 
 
@@ -49,10 +81,25 @@ def test_legacy_migration_is_idempotent() -> None:
         assert {'company_key', 'primary_lane', 'health_primary', 'gate_outcome', 'next_action'} <= columns
         assert conn.execute('PRAGMA user_version').fetchone()[0] == 20260912
         assert conn.execute("SELECT count(*) FROM sqlite_master WHERE type='view' AND name='v_eligible_apply_now'").fetchone()[0] == 1
+        conn.execute(
+            "INSERT INTO applications (company, company_key, role, status, applied_at) "
+            "VALUES ('Terminal Co', 'terminal', 'Submitted PM', 'rejected', '2026-09-08')"
+        )
+        conn.commit()
+        conn.close()
+        command = [sys.executable, str(COOLDOWN_MIGRATION), '--db', str(db)]
+        subprocess.check_call(command)
+        subprocess.check_call(command)
+        conn = sqlite3.connect(db)
+        assert conn.execute('PRAGMA user_version').fetchone()[0] == 20260913
+        assert conn.execute(
+            "SELECT cooldown_until FROM applied_company_cooldowns WHERE company_key = 'terminal'"
+        ).fetchone() == ('2026-12-07',)
         conn.close()
 
 
 if __name__ == '__main__':
     test_fresh_schema()
+    test_terminal_submission_status_keeps_company_on_cooldown()
     test_legacy_migration_is_idempotent()
     print('schema eligibility tests: PASS')

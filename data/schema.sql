@@ -127,7 +127,8 @@ SELECT
   date(max(a.applied_at), '+90 day') AS cooldown_until
 FROM applications AS a
 LEFT JOIN company_aliases AS ca ON ca.alias_key = lower(trim(a.company))
-WHERE a.status = 'applied' AND a.applied_at IS NOT NULL
+WHERE a.applied_at IS NOT NULL
+  AND a.status IN ('applied','rejected','screen','onsite','offer','withdrew')
 GROUP BY COALESCE(NULLIF(a.company_key, ''), ca.company_key, lower(trim(a.company)));
 
 DROP VIEW IF EXISTS v_eligible_apply_now;
@@ -158,4 +159,4 @@ CREATE TABLE IF NOT EXISTS wiki_meta (
   indexed_at TEXT
 );
 
-PRAGMA user_version = 20260912;
+PRAGMA user_version = 20260913;
