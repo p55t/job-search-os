@@ -57,7 +57,7 @@ Inspired by [Karpathy's LLM Wiki concept](https://gist.github.com/karpathy/442a6
           ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  SQLITE TRACKER  (canonical state, gitignored)                  │
-│  data/jobsearch.db — application state, outreach pipeline       │
+│  data/jobsearch.db — state, eligibility, outreach, scan metrics │
 └─────────────────────────────────────────────────────────────────┘
 ```
 

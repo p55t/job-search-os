@@ -171,9 +171,11 @@ If any of those appear in a file destined for git, **stop and ask the human**.
 
 ## 11. SQLite tracker + FTS5 search index
 
-**State tracker:** `data/schema.sql` defines tables for applications, outreach contacts, and actions. The wiki holds context; the database holds state transitions. `data/jobsearch.db` is gitignored.
+**State tracker:** `data/schema.sql` defines tables for applications, outreach contacts/actions, company aliases/policy, and discovery runs. The wiki holds context; the database holds state transitions. `data/jobsearch.db` is gitignored.
 
-**Canonical state rule:** `data/jobsearch.db` is the source of truth for application state, applied/archive records, follow-up dates, and 90-day applied-company cooldowns. `wiki/queue/target-queue.md` is the human-readable ranked queue view and should be reconciled from the database when state changes. See [[ops/source-of-truth]].
+**Eligibility contract (schema version `20260912`):** `applications` stores durable role attributes (`company_key`, `primary_lane`, `health_primary`, `level_band`, `ai_depth`, ATS/channel, and discovery provenance) plus a versioned gate result. `primary_lane` is only `infra_platform`, `agent_eval`, `incumbent_ai`, or `other`; health is represented only by nullable `health_primary`. `gate_outcome` is only `pass`, `fail_level`, `fail_ai_depth`, `fail_never`, or `monitor_only`. Do not cache cooldown or duplicate decisions in gate fields: `v_eligible_apply_now` computes company-policy and applied-company-cooldown exclusions through live views. Outreach is not an eligibility prerequisite. Run `python3 data/migrations/20260912_schema_eligibility.py --db data/jobsearch.db` once for legacy private trackers; it is idempotent and intentionally does not backfill private data.
+
+**Canonical state rule:** `data/jobsearch.db` is the source of truth for application state, applied/archive records, follow-up dates, eligibility metadata, and 90-day applied-company cooldowns. `wiki/queue/target-queue.md` is the human-readable ranked queue view and should be reconciled from `v_eligible_apply_now` when state changes. See [[ops/source-of-truth]].
 
 **Full-text search index:** `data/wiki-index.db` is an FTS5 index over all wiki pages, rebuilt every 30 min by a Hermes cron job. Use it to find relevant pages instead of grepping:
 

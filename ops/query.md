@@ -11,7 +11,7 @@ Answer a question against the wiki. Synthesize, cite, optionally file the answer
 
 ### 1. Search
 
-Bootstrap first from `SCHEMA.md` and `wiki/ops/source-of-truth.md`. For any question about current search state, application history, cooldowns, follow-ups, or what to apply to next, query `data/jobsearch.db` before relying on `wiki/queue/target-queue.md` or previous Discord reports. The database is authoritative for state; the queue page is the rendered view.
+Bootstrap first from `SCHEMA.md` and `wiki/ops/source-of-truth.md`. For any question about current search state, application history, cooldowns, follow-ups, or what to apply to next, query `data/jobsearch.db` before relying on `wiki/queue/target-queue.md` or previous Discord reports. The database is authoritative for state; the queue page is the rendered view. For current apply recommendations, query `v_eligible_apply_now`, not a cached gate field or a wiki rank: that view applies company policy and 90-day cooldowns live. Do not require outreach activity for eligibility.
 
 Identify which wiki pages are likely relevant:
 
